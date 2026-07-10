@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # Router (LLM_PROVIDER=router): specialized NVIDIA models per task type.
     router_code_model: str = "qwen/qwen3.5-122b-a10b"
     router_research_model: str = "deepseek-ai/deepseek-v4-flash"
-    router_chat_model: str = "mistralai/ministral-14b-instruct-2512"
+    router_chat_model: str = "mistralai/mistral-large-3-675b-instruct-2512"
     llm_max_tokens: int = 4096
     llm_max_tool_rounds: int = 8
     llm_timeout_seconds: float = 300.0  # hosted free tiers can cold-start slowly
