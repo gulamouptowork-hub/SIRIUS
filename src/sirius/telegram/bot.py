@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 
 from loguru import logger
-from telegram import Update
+from telegram import BotCommand, Update
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -16,6 +16,18 @@ from telegram.ext import (
 
 from sirius.app import SiriusApp, get_app
 from sirius.tasks.scheduler import start_scheduler
+
+# Registered with Telegram on startup so the "/" menu shows them automatically.
+BOT_COMMANDS = [
+    ("memory", "Painel de memória (ou /memory <busca>)"),
+    ("remember", "Gravar uma memória permanente"),
+    ("forget", "Apagar memória (id ou busca)"),
+    ("export", "Baixar todas as memórias em JSON"),
+    ("tasks", "Tarefas de hoje"),
+    ("overdue", "Tarefas atrasadas"),
+    ("id", "Mostrar seu chat id"),
+    ("help", "Ajuda"),
+]
 
 HELP_TEXT = """I'm Sirius — your personal AI assistant. Just talk to me naturally:
 
@@ -244,7 +256,14 @@ def build_application(app: SiriusApp) -> Application:
     if not token:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is not set (see .env.example).")
     bot = SiriusBot(app)
-    application = Application.builder().token(token).build()
+
+    async def _register_commands(application: Application) -> None:
+        await application.bot.set_my_commands(
+            [BotCommand(name, description) for name, description in BOT_COMMANDS]
+        )
+        logger.info("Registered {} bot commands with Telegram", len(BOT_COMMANDS))
+
+    application = Application.builder().token(token).post_init(_register_commands).build()
     application.add_handler(CommandHandler("start", bot.start))
     application.add_handler(CommandHandler("help", bot.help))
     application.add_handler(CommandHandler("id", bot.chat_id))
