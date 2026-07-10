@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # LLM
-    llm_provider: Literal["anthropic", "ollama", "nvidia"] = "ollama"
+    llm_provider: Literal["anthropic", "ollama", "nvidia", "router"] = "ollama"
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-opus-4-8"
     ollama_base_url: str = "http://localhost:11434"
@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
     nvidia_model: str = "deepseek-ai/deepseek-v4-flash"
     nvidia_extra_body: str = ""  # JSON merged into each request, e.g. chat_template_kwargs
+    # Router (LLM_PROVIDER=router): specialized NVIDIA models per task type.
+    router_code_model: str = "qwen/qwen3.5-122b-a10b"
+    router_research_model: str = "deepseek-ai/deepseek-v4-flash"
+    router_chat_model: str = "mistralai/ministral-14b-instruct-2512"
     llm_max_tokens: int = 4096
     llm_max_tool_rounds: int = 8
     llm_timeout_seconds: float = 300.0  # hosted free tiers can cold-start slowly

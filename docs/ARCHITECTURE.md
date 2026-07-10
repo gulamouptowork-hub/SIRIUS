@@ -92,6 +92,19 @@ formats never leak into the rest of the codebase.
   `/chat/completions` endpoint with function calling. Configured for NVIDIA NIM
   (free hosted tier; retries 429/5xx with backoff since the free tier throttles),
   and reusable as-is for Groq, Together, OpenRouter, LM Studio, etc.
+- **RouterProvider** (`LLM_PROVIDER=router`) — routes each request to a
+  specialized model by task type:
+
+  ```
+  Usuário → Router ─┬─ código   → Qwen      (ROUTER_CODE_MODEL)
+                    ├─ pesquisa → DeepSeek  (ROUTER_RESEARCH_MODEL, thinking)
+                    └─ conversa → Mistral   (ROUTER_CHAT_MODEL, fast path)
+  ```
+
+  Classification is a zero-latency keyword/pattern heuristic (pt + en) on the
+  latest user message; ambiguous messages fall through to the fast chat model.
+  Measured on NVIDIA's free tier: chat ~1s, code ~4s, research ~18s — versus
+  ~25s for everything on a single reasoning model.
 
 ## Key design decisions
 

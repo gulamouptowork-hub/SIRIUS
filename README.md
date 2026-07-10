@@ -29,6 +29,8 @@ Sirius: You prefer Python over Java, you're studying data analysis, and ...
 - 🔌 **Pluggable LLMs** — free local models via **Ollama**, free hosted models via
   **NVIDIA NIM** (build.nvidia.com), or **Claude** via the Anthropic API.
   Swap with one env var.
+- 🧭 **Model router** — code → Qwen, research → DeepSeek (thinking), casual chat →
+  Mistral (fast path): every request gets the best model for the job.
 - 🌐 **REST API** — everything is also scriptable over HTTP (FastAPI, OpenAPI docs at `/docs`)
 
 ## Quick start
