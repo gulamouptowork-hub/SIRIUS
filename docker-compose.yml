@@ -1,0 +1,30 @@
+services:
+  api:
+    build: .
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - sirius-data:/app/data
+    restart: unless-stopped
+
+  bot:
+    build: .
+    command: python -m sirius.telegram.bot
+    env_file: .env
+    volumes:
+      - sirius-data:/app/data
+    restart: unless-stopped
+
+  # Optional: free local LLM. Set LLM_PROVIDER=ollama and
+  # OLLAMA_BASE_URL=http://ollama:11434 in .env, then:
+  #   docker compose exec ollama ollama pull llama3.1
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  sirius-data:
+  ollama-data:
