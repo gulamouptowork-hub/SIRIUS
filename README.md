@@ -18,8 +18,11 @@ Sirius: You prefer Python over Java, you're studying data analysis, and ...
 ## Features (today)
 
 - 🧠 **Long-term memory** — permanent & temporary memories, semantic recall before
-  every answer, versioning, encryption for sensitive entries, export/backup/restore
-- 💬 **Telegram control center** — chat, tasks, reminders, PDF ingestion
+  every answer, versioning, encryption for sensitive entries, export/backup/restore,
+  and a Telegram dashboard (`/memory`, `/remember`, `/forget`, `/export`)
+- 💬 **Telegram control center** — chat, tasks, reminders, file ingestion
+- 🛠️ **Tools** — web search (DuckDuckGo, no key), web page reading, exact calculator,
+  Python execution, CSV/Excel analysis, PDF/Word/text ingestion
 - ✅ **Task manager** — priorities, due dates, recurring reminders (persisted across restarts)
 - 📝 **Notes & notebooks** — create, search, tag, organize
 - 📚 **Knowledge base** — ingest PDFs and articles, semantic search, cited answers

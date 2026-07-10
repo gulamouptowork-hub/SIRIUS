@@ -3,14 +3,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 
+from sirius.agents.files_agent import FilesAgent
 from sirius.agents.knowledge_agent import KnowledgeAgent
 from sirius.agents.memory_agent import MemoryAgent
 from sirius.agents.notes_agent import NotesAgent
 from sirius.agents.orchestrator import Orchestrator
+from sirius.agents.research_agent import ResearchAgent
 from sirius.agents.study_agent import StudyAgent
 from sirius.agents.task_agent import TaskAgent
+from sirius.agents.utility_agent import UtilityAgent
 from sirius.config import Settings, get_settings
 from sirius.db.database import Database
+from sirius.files.service import FileService
 from sirius.knowledge.service import KnowledgeBase
 from sirius.llm.factory import create_provider
 from sirius.logging_setup import setup_logging
@@ -32,6 +36,7 @@ class SiriusApp:
     notes: NoteService
     study: StudyService
     knowledge: KnowledgeBase
+    files: FileService
     orchestrator: Orchestrator
 
 
@@ -47,6 +52,7 @@ def build_app(settings: Settings | None = None) -> SiriusApp:
     notes = NoteService(db)
     study = StudyService(db)
     knowledge = KnowledgeBase(settings)
+    files = FileService(settings)
 
     llm = create_provider(settings)
     orchestrator = Orchestrator(settings, db, llm, memory)
@@ -55,6 +61,9 @@ def build_app(settings: Settings | None = None) -> SiriusApp:
     orchestrator.register(NotesAgent(notes))
     orchestrator.register(StudyAgent(study))
     orchestrator.register(KnowledgeAgent(knowledge))
+    orchestrator.register(ResearchAgent())
+    orchestrator.register(UtilityAgent(files))
+    orchestrator.register(FilesAgent(files))
 
     return SiriusApp(
         settings=settings,
@@ -64,6 +73,7 @@ def build_app(settings: Settings | None = None) -> SiriusApp:
         notes=notes,
         study=study,
         knowledge=knowledge,
+        files=files,
         orchestrator=orchestrator,
     )
 

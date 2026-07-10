@@ -75,8 +75,11 @@ handoff loss, and adding a capability = registering one class.
 | NotesAgent | notes and notebooks |
 | StudyAgent | study logging and progress |
 | KnowledgeAgent | semantic search over ingested documents |
+| ResearchAgent | web search (DuckDuckGo) and web page reading |
+| UtilityAgent | exact calculator (AST whitelist) and Python execution (isolated subprocess, timeout, user file workspace) |
+| FilesAgent | uploaded CSV/Excel workspace: list and preview |
 
-Planned (Phase 7+): ResearchAgent (web search), CodingAgent, AutomationAgent.
+Planned (Phase 8+): GitHub/Gmail/Calendar integrations (need OAuth), AutomationAgent.
 
 ## LLM providers
 

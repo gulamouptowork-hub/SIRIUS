@@ -21,15 +21,23 @@ HELP_TEXT = """I'm Sirius — your personal AI assistant. Just talk to me natura
 
 • "Remember that I prefer Python over Java."
 • "Remind me tomorrow at 9 to submit the report."
-• "What do you remember about me?"
+• "Search the web for today's TSMC stock price."
 • "Quiz me on SQL joins."
-• "Create a note: ideas for my thesis..."
-• Send me a PDF and I'll add it to your knowledge base.
+• Send me a PDF/Word file (→ knowledge base) or CSV/Excel (→ data analysis).
 
-Commands:
+Memory dashboard:
+/memory — overview of everything I remember
+/memory <search> — search memories
+/remember <text> — store a permanent memory
+/forget <id or search> — delete a memory
+/export — download all memories as JSON
+(to edit, just tell me: "update my memory about X to ...")
+
+Tasks:
 /tasks — today's tasks
 /overdue — overdue tasks
-/memories — everything I remember
+
+Other:
 /id — show your chat id
 /help — this message"""
 
@@ -80,15 +88,77 @@ class SiriusBot:
         tasks = self._app.tasks.list_overdue(_user_id(update))
         await update.message.reply_text(_format_tasks(tasks, "Nothing overdue. ✅"))
 
-    async def memories(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+    # ── memory dashboard ─────────────────────────────────────
+
+    async def memory_dashboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await self._guard(update):
             return
-        items = self._app.memory.list_all(_user_id(update))
-        if not items:
-            await update.message.reply_text("I don't have any memories about you yet.")
+        user_id = _user_id(update)
+        query = " ".join(context.args or [])
+        if query:
+            hits = await asyncio.to_thread(self._app.memory.search, user_id, query, 8)
+            if not hits:
+                await update.message.reply_text("No memories matched that search.")
+                return
+            lines = [f"• [{m['kind']}] {m['content']}\n  id: {m['id']}" for m in hits]
+            await update.message.reply_text("🔎 Matching memories:\n\n" + "\n".join(lines))
             return
-        lines = [f"• [{m['kind']}] {m['content']}" for m in items[:50]]
-        await update.message.reply_text("Here's what I remember:\n" + "\n".join(lines))
+
+        items = self._app.memory.list_all(user_id)
+        permanent = sum(1 for m in items if m["kind"] == "permanent")
+        temporary = len(items) - permanent
+        lines = [
+            "🧠 Memory dashboard",
+            f"Permanent: {permanent} | Temporary: {temporary}",
+        ]
+        if items:
+            lines.append("\nMost recent:")
+            lines.extend(f"• [{m['kind']}] {m['content']}" for m in items[:8])
+        lines.append(
+            "\n/memory <search> · /remember <text> · /forget <id or search> · /export"
+        )
+        await update.message.reply_text("\n".join(lines))
+
+    async def remember_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await self._guard(update):
+            return
+        text = " ".join(context.args or [])
+        if not text:
+            await update.message.reply_text("Usage: /remember <what I should remember>")
+            return
+        record = self._app.memory.remember(_user_id(update), text, kind="permanent")
+        await update.message.reply_text(f"🧠 Remembered permanently (id: {record.id}).")
+
+    async def forget_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await self._guard(update):
+            return
+        arg = " ".join(context.args or [])
+        if not arg:
+            await update.message.reply_text("Usage: /forget <memory id or search text>")
+            return
+        if len(arg) == 32 and all(c in "0123456789abcdef" for c in arg):
+            if self._app.memory.forget(arg):
+                await update.message.reply_text("🗑️ Forgotten.")
+            else:
+                await update.message.reply_text("No memory with that id.")
+            return
+        hits = await asyncio.to_thread(self._app.memory.search, _user_id(update), arg, 5)
+        if not hits:
+            await update.message.reply_text("No memories matched that search.")
+            return
+        lines = [f"• {m['content']}\n  /forget {m['id']}" for m in hits]
+        await update.message.reply_text(
+            "Found these — tap the /forget line of the one to delete:\n\n" + "\n".join(lines)
+        )
+
+    async def export_cmd(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await self._guard(update):
+            return
+        path = await asyncio.to_thread(self._app.memory.backup, _user_id(update))
+        with open(path, "rb") as f:
+            await update.message.reply_document(
+                f, filename=Path(path).name, caption="📦 All your memories, as JSON."
+            )
 
     # ── messages ─────────────────────────────────────────────
 
@@ -112,20 +182,48 @@ class SiriusBot:
         if not await self._guard(update):
             return
         doc = update.message.document
-        if not doc.file_name.lower().endswith(".pdf"):
-            await update.message.reply_text("For now I can only ingest PDF documents.")
-            return
-        await update.message.reply_text("Reading your PDF…")
-        tg_file = await context.bot.get_file(doc.file_id)
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / doc.file_name
-            await tg_file.download_to_drive(str(path))
-            chunks = await asyncio.to_thread(
-                self._app.knowledge.ingest_pdf, _user_id(update), path, doc.file_name
+        name = doc.file_name
+        suffix = Path(name).suffix.lower()
+        user_id = _user_id(update)
+
+        if suffix in (".csv", ".xlsx", ".xlsm", ".xls"):
+            tg_file = await context.bot.get_file(doc.file_id)
+            content = bytes(await tg_file.download_as_bytearray())
+            await asyncio.to_thread(self._app.files.save, user_id, name, content)
+            await update.message.reply_text(
+                f"📊 Saved '{name}' to your workspace. "
+                "Ask me anything about it — I can preview and analyze it with Python."
             )
+            return
+
+        if suffix in (".pdf", ".docx", ".txt", ".md"):
+            await update.message.reply_text(f"Reading '{name}'…")
+            tg_file = await context.bot.get_file(doc.file_id)
+            with tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / name
+                await tg_file.download_to_drive(str(path))
+                if suffix == ".pdf":
+                    chunks = await asyncio.to_thread(
+                        self._app.knowledge.ingest_pdf, user_id, path, name
+                    )
+                else:
+                    if suffix == ".docx":
+                        from sirius.files.service import extract_docx_text
+
+                        text = await asyncio.to_thread(extract_docx_text, path)
+                    else:
+                        text = path.read_text(encoding="utf-8", errors="replace")
+                    chunks = await asyncio.to_thread(
+                        self._app.knowledge.ingest_text, user_id, name, text
+                    )
+            await update.message.reply_text(
+                f"📚 Added '{name}' to your knowledge base ({chunks} chunks). "
+                "Ask me anything about it!"
+            )
+            return
+
         await update.message.reply_text(
-            f"Added '{doc.file_name}' to your knowledge base ({chunks} chunks). "
-            "Ask me anything about it!"
+            "Supported files: PDF/Word/text → knowledge base; CSV/Excel → data analysis."
         )
 
     async def voice(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
@@ -152,7 +250,11 @@ def build_application(app: SiriusApp) -> Application:
     application.add_handler(CommandHandler("id", bot.chat_id))
     application.add_handler(CommandHandler("tasks", bot.tasks_today))
     application.add_handler(CommandHandler("overdue", bot.tasks_overdue))
-    application.add_handler(CommandHandler("memories", bot.memories))
+    application.add_handler(CommandHandler("memory", bot.memory_dashboard))
+    application.add_handler(CommandHandler("memories", bot.memory_dashboard))
+    application.add_handler(CommandHandler("remember", bot.remember_cmd))
+    application.add_handler(CommandHandler("forget", bot.forget_cmd))
+    application.add_handler(CommandHandler("export", bot.export_cmd))
     application.add_handler(MessageHandler(filters.Document.ALL, bot.document))
     application.add_handler(MessageHandler(filters.VOICE, bot.voice))
     application.add_handler(MessageHandler(filters.PHOTO, bot.photo))

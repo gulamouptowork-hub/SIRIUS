@@ -24,10 +24,13 @@ persistent scheduler.
 Study session tracking, per-topic progress, tutoring guided by history.
 Next: spaced-repetition flashcards, mistake review queue.
 
-## ✅ Phase 7 — AI agents (v1)
-Agent abstraction + orchestrator with 5 agents (Memory, Task, Notes, Study,
-Knowledge). Next: ResearchAgent (web search via free SearXNG/DuckDuckGo),
-CodingAgent, report generation.
+## ✅ Phase 7 — AI agents & tools
+Agent abstraction + orchestrator with 8 agents (Memory, Task, Notes, Study,
+Knowledge, Research, Utility, Files). Tools: web search (DuckDuckGo),
+web page reading, calculator, Python execution, CSV/Excel upload + analysis,
+PDF/Word/text ingestion. Memory dashboard on Telegram
+(`/memory`, `/remember`, `/forget`, `/export`).
+Next: GitHub (PAT), Gmail/Calendar (OAuth), report generation.
 
 ## 🔜 Phase 8 — Automation
 - Morning briefing & evening review (scheduled orchestrator runs → Telegram)
