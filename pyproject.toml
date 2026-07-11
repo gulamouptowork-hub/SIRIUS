@@ -26,12 +26,16 @@ dependencies = [
     "ddgs>=9.0",
     "python-docx>=1.1",
     "openpyxl>=3.1",
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.2",
     "ruff>=0.4",
+]
+postgres = [
+    "psycopg[binary]>=3.1",
 ]
 
 [tool.setuptools.packages.find]

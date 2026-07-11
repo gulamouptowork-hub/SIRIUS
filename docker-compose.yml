@@ -1,30 +1,67 @@
 services:
-  api:
+  # Sirius: API + Telegram bot + scheduler in one container (python -m sirius.run).
+  sirius:
     build: .
     env_file: .env
     ports:
       - "8000:8000"
     volumes:
-      - sirius-data:/app/data
+      - sirius-data:/app/data          # SQLite, ChromaDB, files, backups, logs
+      - sirius-cache:/home/sirius/.cache  # embedding model cache (survives rebuilds)
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks:
+      - sirius-net
 
-  bot:
-    build: .
-    command: python -m sirius.telegram.bot
-    env_file: .env
+  # Optional: PostgreSQL instead of SQLite.
+  #   docker compose --profile postgres up -d
+  #   .env: DATABASE_URL=postgresql+psycopg://sirius:sirius@postgres:5432/sirius
+  #   (requires the "postgres" extra: pip install -e ".[postgres]" in the image)
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: sirius
+      POSTGRES_PASSWORD: sirius
+      POSTGRES_DB: sirius
     volumes:
-      - sirius-data:/app/data
+      - postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
+    networks:
+      - sirius-net
 
-  # Optional: free local LLM. Set LLM_PROVIDER=ollama and
-  # OLLAMA_BASE_URL=http://ollama:11434 in .env, then:
+  # Optional: Redis (future task queue / cache).
+  #   docker compose --profile redis up -d
+  redis:
+    image: redis:7-alpine
+    profiles: ["redis"]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - sirius-net
+
+  # Optional: free local LLM.
+  #   docker compose --profile ollama up -d
   #   docker compose exec ollama ollama pull llama3.1
+  #   .env: LLM_PROVIDER=ollama, OLLAMA_BASE_URL=http://ollama:11434
   ollama:
     image: ollama/ollama:latest
+    profiles: ["ollama"]
     volumes:
       - ollama-data:/root/.ollama
     restart: unless-stopped
+    networks:
+      - sirius-net
+
+networks:
+  sirius-net:
 
 volumes:
   sirius-data:
+  sirius-cache:
+  postgres-data:
+  redis-data:
   ollama-data:

@@ -40,6 +40,10 @@ class MemoryManager:
             settings.chroma_dir, "memories", embedding_function=embedding_function
         )
 
+    def heartbeat(self) -> int:
+        """Vector-store health probe: returns indexed memory count or raises."""
+        return self._vectors.count()
+
     # ── write ────────────────────────────────────────────────
 
     def remember(

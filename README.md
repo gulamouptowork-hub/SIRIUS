@@ -60,7 +60,58 @@ python -m sirius.telegram.bot     # the Telegram interface
 python -m sirius.main             # (optional) the REST API on :8000
 ```
 
-Or with Docker: `docker compose up -d`.
+Or run everything (API + bot + scheduler) in one process: `python -m sirius.run`.
+
+## Production (Docker, 24/7)
+
+One container runs the API, the Telegram bot, and the reminder scheduler:
+
+```bash
+cp .env.example .env      # fill in your keys
+docker compose build      # multi-stage build, non-root user
+docker compose up -d      # starts with restart: unless-stopped
+docker compose logs -f    # follow logs
+docker compose down       # stop
+```
+
+- **Health**: `GET /health` (local checks — used by the Docker HEALTHCHECK) and
+  `GET /status` (live Telegram + NVIDIA probes). Uptime included in both.
+- **Persistence**: everything lives in the `sirius-data` volume (SQLite, ChromaDB,
+  uploaded files, backups, logs) — survives rebuilds, restarts, and reboots.
+- **Fail-fast**: the container exits immediately with a clear message if mandatory
+  env vars are missing (e.g. `NVIDIA_API_KEY` with `LLM_PROVIDER=router`).
+- **Security**: non-root user, read-only root filesystem, secrets only via `.env`.
+
+**Update to the latest version:**
+
+```bash
+git pull
+docker compose build
+docker compose up -d
+```
+
+**Backup** (memories + database + files):
+
+```bash
+docker compose exec sirius python -c "from sirius.app import get_app; print(get_app().memory.backup('SEU_CHAT_ID'))"
+docker run --rm -v sirius_sirius-data:/data -v .:/backup alpine tar czf /backup/sirius-data.tgz /data
+```
+
+**Restore**: copy the tarball back into the volume the same way (`tar xzf`), or use
+`POST /memories/restore` with an exported JSON.
+
+**Optional services** (isolated in the same Docker network):
+`docker compose --profile postgres up -d` (PostgreSQL), `--profile redis`,
+`--profile ollama` (free local LLM).
+
+**Troubleshooting:**
+- Container restarting → `docker compose logs sirius`; a config error prints the
+  exact missing variable.
+- Bot silent → check `GET /status` for the live Telegram check; confirm only ONE
+  instance is polling (Telegram allows a single `getUpdates` per token).
+- Slow first reply → ChromaDB downloads its embedding model once (cached in the
+  `sirius-cache` volume).
+- NVIDIA 503s → free-tier throttling; Sirius retries with backoff automatically.
 
 ## Documentation
 

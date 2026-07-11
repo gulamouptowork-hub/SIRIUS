@@ -26,6 +26,10 @@ class MemoryUpdate(BaseModel):
     new_content: str
 
 
+class MemoryForget(BaseModel):
+    memory_id: str
+
+
 class MemoryRestore(BaseModel):
     user_id: str = "default"
     memories: list[dict]

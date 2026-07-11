@@ -26,6 +26,14 @@ def setup_logging(settings: Settings) -> None:
         enqueue=True,
     )
     logger.add(
+        settings.log_dir / "errors.log",
+        level="ERROR",
+        rotation="10 MB",
+        retention="90 days",
+        enqueue=True,
+        backtrace=True,
+    )
+    logger.add(
         settings.log_dir / "audit.log",
         level="INFO",
         rotation="10 MB",

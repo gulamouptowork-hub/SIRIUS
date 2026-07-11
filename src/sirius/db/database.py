@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 
@@ -28,6 +28,11 @@ class Database:
         from sirius.db import models  # noqa: F401
 
         Base.metadata.create_all(self.engine)
+
+    def ping(self) -> None:
+        """Raise if the database is unreachable (used by health checks)."""
+        with self.session() as session:
+            session.execute(text("SELECT 1"))
 
     @contextmanager
     def session(self) -> Iterator[Session]:

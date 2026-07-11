@@ -22,6 +22,10 @@ class VectorStore:
         kwargs = {"embedding_function": embedding_function} if embedding_function else {}
         self._collection = self._client.get_or_create_collection(collection, **kwargs)
 
+    def count(self) -> int:
+        """Number of indexed documents; raises if the store is broken."""
+        return self._collection.count()
+
     def add(self, doc_id: str, text: str, metadata: dict) -> None:
         self._collection.upsert(ids=[doc_id], documents=[text], metadatas=[metadata])
 

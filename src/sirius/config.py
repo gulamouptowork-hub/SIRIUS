@@ -74,6 +74,31 @@ class Settings(BaseSettings):
             path.mkdir(parents=True, exist_ok=True)
 
 
+def validate_settings(settings: Settings) -> None:
+    """Fail fast at startup when mandatory configuration is missing.
+
+    Raises SystemExit with a human-readable list of problems so a
+    misconfigured container dies immediately instead of failing later.
+    """
+    problems: list[str] = []
+    if settings.llm_provider in ("nvidia", "router") and not settings.nvidia_api_key:
+        problems.append("NVIDIA_API_KEY is required when LLM_PROVIDER is 'nvidia' or 'router'.")
+    if settings.llm_provider == "anthropic" and not settings.anthropic_api_key:
+        problems.append("ANTHROPIC_API_KEY is required when LLM_PROVIDER is 'anthropic'.")
+    if settings.nvidia_extra_body:
+        import json
+
+        try:
+            json.loads(settings.nvidia_extra_body)
+        except ValueError:
+            problems.append("NVIDIA_EXTRA_BODY is not valid JSON.")
+    if problems:
+        raise SystemExit(
+            "Configuration errors (fix your .env / environment variables):\n- "
+            + "\n- ".join(problems)
+        )
+
+
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
